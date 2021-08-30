@@ -54,7 +54,7 @@ img:
 		docker tag $${newImg} $${img} && \
 		docker rmi $${newImg}  && \
 		tagPkg=`echo $${img}|sed 's@/@-@g'|sed 's@:@-@g'` && \
-		docker save $${img} -o  packages/k8s/images/$${tagPkg} ; \
+		docker save  -o  packages/k8s/images/$${tagPkg} $${img}  ; \
 	done
 
 flannel:
@@ -62,7 +62,7 @@ flannel:
 	@rm -rf plugins/flannel/images
 	mkdir plugins/flannel/images
 	docker pull quay.io/coreos/flannel:v0.11.0-arm64
-	docker save quay.io/coreos/flannel:v0.11.0-arm64 -o plugins/flannel/images/flannel.tar
+	docker save -o plugins/flannel/images/flannel.tar quay.io/coreos/flannel:v0.11.0-arm64
 
 clean:
 	echo "clean all "
