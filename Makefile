@@ -16,7 +16,7 @@ all: docker k8s
 docker:
 	@echo "clean all docker binary execute file in docker file"
 	rm -rf packages/docker
-	@mkdir packages/docker
+	@mkdir packages/docker -pv
 	@echo "down docker binary tar from network"
 	curl ${DownloadUrl} -o packages/docker/docker.tar
 	@echo "untar docker tar package "
@@ -24,28 +24,25 @@ docker:
 	rm -f packages/docker/docker.tar
 
 
-k8s: img rpm flannel
-	echo "prepare kubernetes"
+k8s: rpm img flannel
+	echo "kubernetes package has be completed"
 	@echo "K8sVersion=$${KubernetesVersion}" >> config.py
-	rm -rf packages/k8s/rpm/*
-	rm -rf packages/k8s/images/
-	mkdir packages/k8s/rpm
-	mkdir packages/k8s/images
+
+
 
 rpm:
+	rm -rf packages/k8s/rpm/*
+	mkdir packages/k8s/rpm -pv
 	echo "prepare kubernetes repo"
 	@cp packages/configure/kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 	@yum clean all && yum list all
 	yum install kubeadm-${KubernetesVersion} kubectl-${KubernetesVersion}  kubelet-${KubernetesVersion} kubernetes-cni --downloadonly --downloaddir=packages/k8s/rpm
 
-rpmi:
-	echo "prepare kubernetes repo"
-	@cp packages/configure/kubernetes.repo /etc/yum.repos.d/kubernetes.repo
-	@yum clean all && yum list all
-	yum install kubeadm-${KubernetesVersion} kubectl-${KubernetesVersion}  kubelet-${KubernetesVersion} kubernetes-cni -y
 
-img:
+img: rpmi
 	echo "download k8s images"
+	rm -rf packages/k8s/images/
+	mkdir packages/k8s/images -pv
 	@for img in `kubeadm config images list`;\
 	do \
 	  	echo $${img} && \
@@ -57,10 +54,15 @@ img:
 		docker save  -o  packages/k8s/images/$${tagPkg} $${img}  ; \
 	done
 
+
+rpmi:
+	@echo "template install k8s rpms"
+	@yum localinstall package/k8s/rpm/* -y
+
 flannel:
 	echo "download flannel images"
 	@rm -rf plugins/flannel/images
-	mkdir plugins/flannel/images
+	mkdir plugins/flannel/images -pv
 	docker pull quay.io/coreos/flannel:v0.11.0-arm64
 	docker save -o plugins/flannel/images/flannel.tar quay.io/coreos/flannel:v0.11.0-arm64
 
