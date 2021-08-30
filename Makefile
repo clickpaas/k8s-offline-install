@@ -8,7 +8,7 @@ DownloadUrl=https://download.docker.com/linux/static/stable/${cpuArch}/docker-${
 # if you don't know how many version supplied by kubernetes,
 # you may to use `yum list kubelet kubeadm kubectl  --showduplicates|sort -r` to get all avilable kubernetes version
 
-.PHONY: all docker k8s rpm img rpmi clean flannel
+.PHONY: all docker k8s rpm img rpm_install clean flannel
 
 all: docker k8s
 	@echo "prepare some package"
@@ -39,7 +39,7 @@ rpm:
 	yum install kubeadm-${KubernetesVersion} kubectl-${KubernetesVersion}  kubelet-${KubernetesVersion} kubernetes-cni --downloadonly --downloaddir=packages/k8s/rpm
 
 
-img: rpmi
+img: rpm_install
 	echo "download k8s images"
 	rm -rf packages/k8s/images/
 	mkdir packages/k8s/images -pv
@@ -55,9 +55,11 @@ img: rpmi
 	done
 
 
-rpmi:
-	@echo "template install k8s rpms"
-	@yum localinstall package/k8s/rpm/* -y
+
+
+rpm_install:
+	echo "template install k8s rpms"
+	yum localinstall packages/k8s/rpm/*.rpm -y
 
 flannel:
 	echo "download flannel images"
@@ -65,6 +67,9 @@ flannel:
 	mkdir plugins/flannel/images -pv
 	docker pull quay.io/coreos/flannel:v0.11.0-arm64
 	docker save -o plugins/flannel/images/flannel.tar quay.io/coreos/flannel:v0.11.0-arm64
+
+
+
 
 clean:
 	echo "clean all "
