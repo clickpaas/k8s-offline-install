@@ -6,7 +6,8 @@ from error import Error
 _Release_File = "/etc/redhat-release"
 
 OS_Version_Mapping = {
-    "Huawei-Eula": "EulerOS release 2.0 (SP2)"
+    "Huawei-Eula": "EulerOS release 2.0 (SP2)",
+    "Centos": "CentOS Linux release",
 }
 UnSupportOSVersion = "UnSupportOSVersion"
 
@@ -32,9 +33,11 @@ class VirtualMachine:
             return remote_read
 
         for (k, v) in OS_Version_Mapping.items():
-            if v == remote_read.get_data():
-
+            if v in remote_read.get_data():
                 return Error.default_ok()
+            # if v == remote_read.get_data():
+            #     return Error.default_ok()
+            #
         return remote_read.wrap_error(Error.new(Error.Failed, UnSupportOSVersion))
 
 

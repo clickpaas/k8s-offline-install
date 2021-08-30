@@ -16,6 +16,7 @@ from common.error import Error
 def validate_environment():
     def panic_if_necessary(ip, password):
         osv = VirtualMachine.get_os_version(ip, password)
+        osv.get_data()
         assert osv.Success == osv.get_code(), "OsVersion validate failed: {}, code:{}".format(osv.get_msg(),
                                                                                               osv.get_code())
 
@@ -42,7 +43,7 @@ def bootstrap_sshpass():
     sshpass_location = os.path.join(get_project_root_path(), "packages/sshpass")
     err = getstatusoutput("yum localinstall {}/* -y".format(sshpass_location))
 
-    if err[0] != 0 or "Complete" not in err[1]:
+    if err[0] != 0 :
         print("Install local sshpass rpm failed ,make sure sshpass installed first \n Reason:{}".format(err[1]))
         sys.exit(-1)
     else:
@@ -62,7 +63,18 @@ def bootstrap_enviroment(host, password):
     print ColorPrompt.info_prefix() + "\t{}\tBegin to stop swap".format(ColorPrompt.title_msg(host))
     stop_swap = RemoteCommand.security_command(host, password, "swapoff -a")
 
+
+
     host_name_ctl = RemoteCommand.security_command(host, password, "hostnamectl set-hostname k8s-{}".format(host.replace(".","-")))
+
+    err = LocalCommand.scp(host, password, os.path.join(get_project_root_path(), "packages/configure/k8s.conf"), "/etc/sysctl.d/k8s.conf")
+
+    err = LocalCommand.scp(host, password, os.path.join(get_project_root_path(), "packages/configure/k8s_module.conf"), "/etc/modules-load.d/k8s_module.conf")
+
+    err = RemoteCommand.security_command(host, password, "sysctl --system")
+
+    err = RemoteCommand.security_command(host, password, "echo 1 >  /proc/sys/net/ipv4/ip_forward")
+
 
     return
 

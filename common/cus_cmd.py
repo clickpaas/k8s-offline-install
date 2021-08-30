@@ -13,7 +13,7 @@ class RemoteCommand:
     @staticmethod
     def security_command(host, password, command):
         ret = Error.default_ok()
-        flag = getstatusoutput('sshpass -p {} ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -q root@{} "{}"'.
+        flag = getstatusoutput('sshpass -p \'{}\' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -q root@{} "{}"'.
                                format(password, host, command))
         if flag[0] != 0:
             ret.set_code(ret.Failed)
@@ -65,7 +65,7 @@ class LocalCommand:
     @staticmethod
     def scp(host, password, src, dest):
         flag = getstatusoutput(
-            'sshpass -p {} scp  -o StrictHostKeyChecking=no {} root@{}:{}'.format(password, src, host, dest))
+            'sshpass -p \'{}\' scp  -o StrictHostKeyChecking=no {} root@{}:{}'.format(password, src, host, dest))
         if flag[0] != 0:
             print ColorPrompt.error_prefix() + "\t{}\tscp {} failed: Reason: {}".format(ColorPrompt.title_msg(host), dest,
                                                                                         ColorPrompt.err_msg(flag[1]))
