@@ -65,8 +65,8 @@ flannel:
 	echo "download flannel images"
 	@rm -rf plugins/flannel/images
 	mkdir plugins/flannel/images -pv
-	docker pull quay.io/coreos/flannel:v0.11.0-arm64
-	docker save -o plugins/flannel/images/flannel.tar quay.io/coreos/flannel:v0.11.0-arm64
+	docker pull quay.io/coreos/flannel:v0.11.0-amd64
+	docker save -o plugins/flannel/images/flannel.tar quay.io/coreos/flannel:v0.11.0-amd64
 
 
 
