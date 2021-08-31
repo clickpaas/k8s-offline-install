@@ -18,9 +18,6 @@ from pre_install import (
 
 from common.kubedm import KubernetesInstall
 
-from common.cni_plugin import install_network_plugin
-import post_install
-from common.gpu_suuport import add_nvidia_support
 
 operationSystem = "centos" if os.path.exists("/etc/redhat-release") else "None"
 pkg = "yum" if os == "centos" else "apt-get"
