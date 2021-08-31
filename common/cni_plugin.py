@@ -8,39 +8,32 @@ from commands import getstatusoutput, getoutput
 import os
 from utils import get_project_root_path
 
-def install_network_plugin(plugin_name, data_iface):
-    print ColorPrompt.info_prefix() +"\tBegin to install {}".format(plugin_name)
-    print ColorPrompt.info_prefix() +"\tScp plugin images to all nodes"
 
-    source_plugin_path = os.path.join(get_project_root_path(), "plugins", plugin_name)
-    source_plugin_image_path = os.path.join(source_plugin_path, "images")
-    remote_plugin_img_path = os.path.join(config.work_temp_dir, "plugins", plugin_name, "images")
+class CniPlugin:
+    def __init__(self, cni_name):
+        self.cni_name = cni_name
+        self.img_path = os.path.join(get_project_root_path(), "plugins/{}/images".format(self.cni_name))
+        self.yaml_path = os.path.join(get_project_root_path(), "plugins/{}/yaml".format(self.cni_name))
 
-    hosts = config.hosts
-    for sighost in hosts.get("nodes" ) +hosts.get("master") + hosts.get("slave"):
-        if not sighost: continue
-        host ,password = sighost.get("ip"), sighost.get("password")
+    def load_cni_images(self, host, password):
+        _ = RemoteCommand.security_command(host, password, "mkdir /tmp/cni/img -pv")
+        map(lambda _: LocalCommand.scp(host, password, os.path.join(self.img_path, _), "/tmp/cni/img/{}".format(_)),
+            os.listdir(self.img_path))
 
-        RemoteCommand.security_command(host, password, "mkdir {} -pv".format(remote_plugin_img_path))
-        map(lambda img: LocalCommand.scp(host, password,
-                            os.path.join(source_plugin_image_path, img),
-                            os.path.join(remote_plugin_img_path, img)),
-            os.listdir(source_plugin_image_path))
-        map(lambda img: RemoteCommand.security_command(host, password, "docker load -i {}".
-                                         format(os.path.join(remote_plugin_img_path, img))),
-            os.listdir(source_plugin_image_path))
+        map(lambda _: RemoteCommand.docker_load_image(host, password, "/tmp/cni/img/{}".format(_)),
+            os.listdir(self.img_path))
 
-    yaml_path = os.path.join(source_plugin_path, "yaml")
+        _ = RemoteCommand.security_command(host, password, "rm -rf /tmp/cni")
 
-    if plugin_name == 'flannel':
-        source_yaml = os.path.join(yaml_path, "kube-flannel.yml")
-        replace = getstatusoutput("sed -i 's/DATAINTERFACE/{}/' {}".format(data_iface, source_yaml))
-        yamls = [os.path.join(yaml_path, _) for _ in os.listdir(yaml_path)]
-        map(lambda _: getoutput("kubectl apply -f {}".format(_)), yamls)
-        undo_replace = getstatusoutput("sed -i 's/{}/DATAINTERFACE/' {}".format(data_iface, source_yaml))
-    else:
-        source_yaml = os.path.join(yaml_path, "calico.yaml")
-        replace = getstatusoutput("sed -i 's/DATAINTERFACE/{}/' {}".format(data_iface, source_yaml))
-        yamls = [os.path.join(yaml_path, _) for _ in os.listdir(yaml_path)]
-        map(lambda _: getoutput("kubectl apply -f {}".format(_)), yamls)
-        restore_calico = getstatusoutput("sed -i 's/{}/DATAINTERFACE/' {}".format(data_iface, source_yaml))
+    def apply_yaml(self, data_iface):
+        if self.cni_name == 'flannel':
+            source_yaml = os.path.join(self.yaml_path, "kube-flannel.yml")
+            replace = getstatusoutput("sed -i 's/DATAINTERFACE/{}/' {}".format(data_iface, source_yaml))
+            yamls = [os.path.join(self.yaml_path, _) for _ in os.listdir(self.yaml_path)]
+            undo_replace = getstatusoutput("sed -i 's/{}/DATAINTERFACE/' {}".format(data_iface, source_yaml))
+        elif self.cni_name == "calico":
+            source_yaml = os.path.join(self.yaml_path, "calico.yaml")
+            replace = getstatusoutput("sed -i 's/DATAINTERFACE/{}/' {}".format(data_iface, source_yaml))
+            yamls = [os.path.join(self.yaml_path, _) for _ in os.listdir(self.yaml_path)]
+            restore_calico = getstatusoutput("sed -i 's/{}/DATAINTERFACE/' {}".format(data_iface, source_yaml))
+        _ = getstatusoutput("kubectl apply -f {}/".format(self.yaml_path))

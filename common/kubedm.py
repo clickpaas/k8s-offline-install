@@ -18,7 +18,6 @@ class KubernetesInstall:
         map(lambda _: LocalCommand.scp(host, password, os.path.join(k8s_rpm, _), "/tmp/k8s/rpm"), os.listdir(k8s_rpm))
 
         err = RemoteCommand.security_command(host, password, "yum localinstall /tmp/k8s/rpm/* -y")
-     
 
         err = RemoteCommand.systemctl_enable(host, password, "kubelet")
 

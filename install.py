@@ -6,6 +6,7 @@ import re
 import config
 from common.utils import ColorPrompt
 from common import network
+from common.cni_plugin import CniPlugin
 from common.cus_cmd import LocalCommand, RemoteCommand
 from common.docker import DockerInstall
 from pre_install import (
@@ -29,6 +30,8 @@ TEMP_SAVE_DIR = "/tmp/k8s/"
 
 
 def main():
+    print(ColorPrompt.stage_info("Bootstrap-->sshpass is installed or not"))
+    bootstrap_sshpass()
     # check os version is validate, only support euler,centos(aliyun/tencent)
     # other os version like centos7x may be worker very well,but those may doesn't work sometimes
     # anyway you should  try it for all always to ensure it works
@@ -88,10 +91,10 @@ def main():
 
     if network_plugin == 1:
         pod_network = "10.244.0.0/16"
-        network_pluginname = "flannel"
+        cni_name = "flannel"
     elif network_plugin == 2:
         pod_network = "192.168.0.0/16"
-        network_pluginname = "calico"
+        cni_name = "calico"
     else:
         print("error network plugin")
 
@@ -101,7 +104,7 @@ def main():
     print(ColorPrompt.info_prefix() + "\t[{:^12}]\t[{:^16}]".format("ApiServer",
                                                                     ColorPrompt.normal_msg(api_server_addr)))
     print(ColorPrompt.info_prefix() + "\t[{:^12}]\t[{:^16}]".format("NetPlugin",
-                                                                    ColorPrompt.normal_msg(network_pluginname)))
+                                                                    ColorPrompt.normal_msg(cni_name)))
     for master in hosts.get("master"):
         if not master: continue
         host, passwd = master.get("ip"), master.get("password")
@@ -127,12 +130,9 @@ def main():
                                                                                              ColorPrompt.normal_msg(
                                                                                                  passwd)))
     print(ColorPrompt.info_prefix() + "\t[{:^12}]\t[{:^24}]".format("Data-Iface", ColorPrompt.normal_msg(data_iface)))
-    confirm = raw_input(ColorPrompt.prompt("Above all informataions are correct?[Y/N]:"))
+    confirm = raw_input(ColorPrompt.prompt("Above all information are correct?[Y/N]:"))
     if confirm.lower() != "y":
         sys.exit(0)
-
-    print(ColorPrompt.stage_info("Bootstrap-->sshpass is installed or not"))
-    _sshpass = bootstrap_sshpass()
 
     # if kubeadm has been installed plz make sure reset it
     pre_installed_kubeadm = raw_input(ColorPrompt.prompt("Kubeadm has been installed in previous[Y|N]:"))
@@ -167,21 +167,25 @@ def main():
     k8s_join_cmd = KubernetesInstall.get_join_token(init[1])
     #
     getoutput("mkdir -pv ~/.kube && cp -f /etc/kubernetes/admin.conf /root/.kube/config")
-    #
-    print(ColorPrompt.stage_info("Kube Node Join stage"))
-    print(ColorPrompt.info_prefix() + "Node Join cmd is : {}".format(k8s_join_cmd.get("node")))
-    map(lambda _: RemoteCommand.security_command(host, passwd, k8s_join_cmd.get("node")) , hosts.get("nodes"))
 
-    #
+    print(ColorPrompt.stage_info("load cni images {} stage".format(cni_name)))
+    cni_plugin = CniPlugin(cni_name)
+    map(lambda _: cni_plugin.load_cni_images(_.get("ip"), _.get("password")),
+        [_ for _ in hosts.get("nodes") + hosts.get("slave") if _])
+
     print(ColorPrompt.stage_info("Kube Master Join stage"))
     print(ColorPrompt.info_prefix() + "Master Join cmd is : {}".format(k8s_join_cmd.get("slave")))
     for sighost in hosts.get("slave"):
         if not sighost: continue
         host, password = sighost.split("/")
         result = RemoteCommand.security_command(host, password, k8s_join_cmd.get("slave"))
-    #
-    print(ColorPrompt.stage_info("Apply {} stage".format(network_pluginname)))
-    install_network_plugin(network_pluginname, data_iface)
+
+    print(ColorPrompt.stage_info("Kube Node Join stage"))
+    print(ColorPrompt.info_prefix() + "Node Join cmd is : {}".format(k8s_join_cmd.get("node")))
+    map(lambda _: RemoteCommand.security_command(_.get("ip"), _.get("password"), k8s_join_cmd.get("node")),
+        [_ for _ in hosts.get("nodes") if _])
+
+    cni_plugin.apply_yaml(data_plane_interface)
     #
     # # for nvidia never be used
     # # if config.gpus:
