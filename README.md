@@ -15,6 +15,10 @@
 |腾讯云|Centos-7.2|支持|
 |腾讯云|Centos-7.6|支持|
 |腾讯云|Centos-7.9|支持|
+|AWS|amazon v2|支持|
+|谷歌云|centos7.9|支持|
+
+
 
 
 
