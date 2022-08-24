@@ -1,7 +1,7 @@
 #!/bin/python
 
-from cus_cmd import RemoteCommand
-from error import Error
+from common.cus_cmd import RemoteCommand
+from common.error import Error
 
 _Release_File = "/etc/redhat-release"
 

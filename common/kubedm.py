@@ -1,10 +1,7 @@
 #!/bin/python
 import os
-from cus_cmd import RemoteCommand, LocalCommand
-from config import work_temp_dir
+from .cus_cmd import RemoteCommand, LocalCommand
 from common.utils import get_project_root_path
-import re
-
 
 class KubernetesInstall:
     def __init__(self):pass
@@ -15,7 +12,7 @@ class KubernetesInstall:
         err = RemoteCommand.security_command(host, password,"mkdir /tmp/k8s/rpm -pv")
 
         k8s_rpm = os.path.join(get_project_root_path(), "packages/k8s/rpm")
-        map(lambda _: LocalCommand.scp(host, password, os.path.join(k8s_rpm, _), "/tmp/k8s/rpm"), os.listdir(k8s_rpm))
+        list(map(lambda _: LocalCommand.scp(host, password, os.path.join(k8s_rpm, _), "/tmp/k8s/rpm"), os.listdir(k8s_rpm)))
 
         err = RemoteCommand.security_command(host, password, "yum localinstall /tmp/k8s/rpm/* -y")
 
@@ -29,9 +26,9 @@ class KubernetesInstall:
 
         k8s_img = os.path.join(get_project_root_path(), "packages/k8s/images/")
         # copy images
-        map(lambda _: LocalCommand.scp(host, password, os.path.join(k8s_img,_), "/tmp/k8s/img"), os.listdir(k8s_img))
+        list(map(lambda _: LocalCommand.scp(host, password, os.path.join(k8s_img,_), "/tmp/k8s/img"), os.listdir(k8s_img)))
         # load images
-        map(lambda _: RemoteCommand.docker_load_image(host, password, os.path.join("/tmp/k8s/img", _)), os.listdir(k8s_img))
+        list(map(lambda _: RemoteCommand.docker_load_image(host, password, os.path.join("/tmp/k8s/img", _)), os.listdir(k8s_img)))
         # delete tmp files
         err = RemoteCommand.security_command(host, password, "rm -rf /tmp/k8s/")
 

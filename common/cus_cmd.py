@@ -1,7 +1,9 @@
 #!/bin/python
-from commands import getstatusoutput
-from utils import ColorPrompt
+import shutil
+
+from common.utils import ColorPrompt, general_syscmd_execute
 from common.error import Error
+import config
 
 
 # RemoteCommand is used to execute bash command in remote host
@@ -13,8 +15,11 @@ class RemoteCommand:
     @staticmethod
     def security_command(host, password, command):
         ret = Error.default_ok()
-        flag = getstatusoutput('sshpass -p \'{}\' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -q root@{} "{}"'.
-                               format(password, host, command))
+        if config.SupportScpTransform:
+            command = 'sshpass -p \'{}\' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -q root@{} "{}"'.format(
+                password, host, command)
+        flag = general_syscmd_execute(command)
+
         if flag[0] != 0:
             ret.set_code(ret.Failed)
             ret.set_msg(flag[1])
@@ -24,7 +29,7 @@ class RemoteCommand:
             ret.set_data(flag[1])
         return ret
 
-    # yum_local_install used to execute yum local install command in remote host, is only for yum
+    # yum_local_install used to execute yum local installation command in remote host, is only for yum
     @staticmethod
     def yum_local_install(host, password, target):
         cmd = "yum localinstall {} -y".format(target)
@@ -64,12 +69,15 @@ class LocalCommand:
     # scp command is used to copy some file in local host machined to remote hosts
     @staticmethod
     def scp(host, password, src, dest):
-        flag = getstatusoutput(
-            'sshpass -p \'{}\' scp  -o StrictHostKeyChecking=no {} root@{}:{}'.format(password, src, host, dest))
+        if config.SupportScpTransform:
+            flag = general_syscmd_execute('sshpass -p \'{}\' scp  -o StrictHostKeyChecking=no {} root@{}:{}'.format(password, src, host, dest))
+        else:
+            flag = shutil.copyfile(src, dest)
         if flag[0] != 0:
-            print ColorPrompt.error_prefix() + "\t{}\tscp {} failed: Reason: {}".format(ColorPrompt.title_msg(host), dest,
-                                                                                        ColorPrompt.err_msg(flag[1]))
+            print(
+                ColorPrompt.error_prefix() + "\t{}\tscp {} failed: Reason: {}".format(ColorPrompt.title_msg(host), dest,
+                                                                                      ColorPrompt.err_msg(flag[1])))
             msg = "scp {} to {}:{} failed".format(src, host, dest)
             return Error.new(Error.Failed, msg, "")
-        print ColorPrompt.info_prefix() + "\t{}\tscp {} successfully".format(ColorPrompt.title_msg(host), dest)
+        print(ColorPrompt.info_prefix() + "\t{}\tscp {} successfully".format(ColorPrompt.title_msg(host), dest))
         return Error.new(Error.Success, "", "")
