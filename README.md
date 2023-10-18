@@ -76,5 +76,5 @@ python install.py
 
 ### Donate
 &emsp;If it helps you, you can buy me a coffue if you want.<br/>
-<img src="https://github.com/clickpaas/k8s-offline-install/blob/master/image/wechat.jpeg" width="200px" height="200px" />
-<img src="https://github.com/clickpaas/k8s-offline-install/blob/master/image/alipay.jpeg" width="200px" height="200px" />
+<img src="https://github.com/clickpaas/k8s-offline-install/blob/main/image/wechat.jpeg" width="200px" height="200px" />
+<img src="https://github.com/clickpaas/k8s-offline-install/blob/main/image/alipay.jpeg" width="200px" height="200px" />
