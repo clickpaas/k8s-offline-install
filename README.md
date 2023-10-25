@@ -176,6 +176,7 @@ python install.py
 #### 让master设置为可以调度
 ```bash
 kubectl taint nodes --all node-role.kubernetes.io/master-
+```
 
 
 ### Donate
