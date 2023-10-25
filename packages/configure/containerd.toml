@@ -1,0 +1,28 @@
+disabled_plugins = []
+imports = []
+oom_score = 0
+plugin_dir = ""
+required_plugins = []
+root = "/var/lib/containerd"
+state = "/run/containerd"
+temp = ""
+version = 2
+
+[cgroup]
+  path = ""
+
+
+[plugins."io.containerd.grpc.v1.cri".registry.configs."registry.bizsaas.net".tls]
+  insecure_skip_verify = true
+
+[plugins."io.containerd.grpc.v1.cri".registry.configs."registry.clickpaas.tech".tls]
+  insecure_skip_verify = true
+
+[proxy_plugins]
+
+
+
+[ttrpc]
+  address = ""
+  gid = 0
+  uid = 0

@@ -6,7 +6,8 @@ import config
 from common.utils import ColorPrompt, general_syscmd_execute, general_raw_input
 from common import network
 from common.cni_plugin import CniPlugin
-from common.cus_cmd import RemoteCommand
+from common.operator import K8sOperator
+from common.cus_cmd import RemoteCommand, LocalCommand
 from common.docker import DockerInstall
 from pre_install import (
     bootstrap_sshpass,
@@ -34,11 +35,17 @@ def main():
     # other os version like CentOS may be worker very well,but those may doesn't work sometimes
     # anyway you should  try it for all always to ensure it works
     print(ColorPrompt.stage_info("Validate OsVersion............"))
-    # validate_environment()
+    validate_environment()
 
     hosts = config.hosts
+    master_nodes = hosts.get("master")
+    assert isinstance(master_nodes, list), "expect got a list but got {}".format(type(master_nodes))
+    worker_nodes = hosts.get("nodes")
+    assert isinstance(worker_nodes, list), "expected got a list ,but got {}".format(type(worker_nodes))
+    slave_nodes = hosts.get("slave")
+    assert isinstance(slave_nodes, list), "expected a list, but got {}".format(type(slave_nodes))
 
-    all_nodes = hosts.get("master") + hosts.get("nodes") + hosts.get("slave")
+    all_nodes = master_nodes + worker_nodes + slave_nodes
     all_nodes = [_ for _ in all_nodes if _]
 
     print(ColorPrompt.stage_info("bootstrap base environment........."))
@@ -117,7 +124,7 @@ def main():
                                                                     ColorPrompt.normal_msg(api_server_addr)))
     print(ColorPrompt.info_prefix() + "\t[{:^12}]\t[{:^16}]".format("NetPlugin",
                                                                     ColorPrompt.normal_msg(cni_name)))
-    for master in hosts.get("master"):
+    for master in master_nodes:
         if not master: continue
         host, passwd = master.get("ip"), master.get("password")
         print(ColorPrompt.info_prefix() + "\t[{:^12}]\t[HOST:{:^16}]\t[PASS:{:^16}]".format("Master",
@@ -125,7 +132,8 @@ def main():
                                                                                                 host),
                                                                                             ColorPrompt.normal_msg(
                                                                                                 passwd)))
-    for node in hosts.get("nodes"):
+
+    for node in worker_nodes:
         if not node: continue
         host, passwd = node.get("ip"), node.get("password")
         print(ColorPrompt.info_prefix() + "\t[{:^12}]\t[HOST:{:^16}]\t[PASS:[{:^16}]".format("Nodes",
@@ -133,7 +141,7 @@ def main():
                                                                                                  host),
                                                                                              ColorPrompt.normal_msg(
                                                                                                  passwd)))
-    for node in hosts.get("slave"):
+    for node in slave_nodes:
         if not node: continue
         host, passwd = node.get("ip"), node.get("password")
         print(ColorPrompt.info_prefix() + "\t[{:^12}]\t[HOST:{:^16}]\t[PASS:[{:^16}]".format("Slave",
@@ -176,40 +184,52 @@ def main():
     # # begin init kubeadm
     print(ColorPrompt.stage_info("Kubeadm init stage"))
     def sync_host_record(host, password):
-        RemoteCommand.security_command(host,password, 'echo "{}  {}"'.format(api_server_addr, config.ApiServerDomain))
+        RemoteCommand.security_command(host,password, 'echo "{}  {}" >> /etc/hosts '.format(api_server_addr, config.ApiServerDomain))
     if config.ApiServerDomain:
         list(map(lambda _: sync_host_record(_.get("ip"), _.get("password")), all_nodes))
         api_server_addr = config.ApiServerDomain
 
-    print('./kubeadm init  --kubernetes-version={} --pod-network-cidr={}  --control-plane-endpoint {} --upload-certs'. \
+    print('kubeadm init  --kubernetes-version={} --pod-network-cidr={}  --control-plane-endpoint {} --upload-certs'. \
           format(config.KubernetesVersion, pod_network, api_server_addr))
     init = general_syscmd_execute(
-        './kubeadm init  --kubernetes-version={} --pod-network-cidr={}  --control-plane-endpoint {} '
+        'kubeadm init  --kubernetes-version={} --pod-network-cidr={}  --control-plane-endpoint {} '
         '--upload-certs'.format(config.KubernetesVersion, pod_network, api_server_addr))
-    #
+    
     if init[0] != 0:
         print(ColorPrompt.info_prefix() + "\t./kubeadm init Failed,Reason is:{}".format(ColorPrompt.err_msg(init[1])))
         sys.exit(1)
     k8s_join_cmd = KubernetesInstall.get_join_token(init[1])
-    #
+
+    # copy all config to all nodes
     general_syscmd_execute("mkdir -pv ~/.kube && cp -f /etc/kubernetes/admin.conf /root/.kube/config")
+    list(map(lambda _: RemoteCommand.security_command(_.get("ip"), _.get("password"), "mkdir -pv ~/.kube/"), all_nodes))
+    list(map(lambda _: LocalCommand.scp(_.get("ip"), _.get("password"), "/etc/kubernetes/admin.conf", "/root/.kube/config"), all_nodes))
+
 
     print(ColorPrompt.stage_info("load cni images {} stage".format(cni_name)))
     cni_plugin = CniPlugin(cni_name)
-    list(map(lambda _: cni_plugin.load_cni_images(_.get("ip"), _.get("password")),[_ for _ in hosts.get("nodes") + hosts.get("slave") if _]))
+    list(map(lambda _: cni_plugin.load_cni_images(_.get("ip"), _.get("password")),[_ for _ in all_nodes if _]))
 
     print(ColorPrompt.stage_info("Kube Master Join stage"))
     print(ColorPrompt.info_prefix() + "Master Join cmd is : {}".format(k8s_join_cmd.get("slave")))
-    for sighost in hosts.get("slave"):
-        if not sighost: continue
-        host, password = sighost.split("/")
-        result = RemoteCommand.security_command(host, password, k8s_join_cmd.get("slave"))
+    list(map(lambda _: RemoteCommand.security_command(_.get("ip"), _.get("password"), k8s_join_cmd.get("slave")),[_ for _ in slave_nodes if _]))
 
     print(ColorPrompt.stage_info("Kube Node Join stage"))
     print(ColorPrompt.info_prefix() + "Node Join cmd is : {}".format(k8s_join_cmd.get("node")))
-    list(map(lambda _: RemoteCommand.security_command(_.get("ip"), _.get("password"), k8s_join_cmd.get("node")),[_ for _ in hosts.get("nodes") if _]))
+    list(map(lambda _: RemoteCommand.security_command(_.get("ip"), _.get("password"), k8s_join_cmd.get("node")),[_ for _ in worker_nodes if _]))
 
     cni_plugin.apply_yaml(data_plane_interface)
+
+    operator = K8sOperator()
+    list(map(lambda _: operator.load_cni_images(_.get("ip"), _.get("password")),[_ for _ in all_nodes if _]))
+    operator.apply_yaml()
+
+
+    # copy try_remount.sh to all nodes
+    list(map(lambda _: RemoteCommand.security_command(_.get("ip"), _.get("password"), "mkdir /data/devop_scripts/ -pv"), all_nodes))
+    list(map(lambda _: LocalCommand.scp(_.get("ip"), _.get("password"), "./minio_mount_checker.sh", "/data/devop_scripts/minio_mount_checker.sh"), all_nodes))
+    list(map(lambda _: RemoteCommand.security_command(_.get("ip"), _.get("password"), 'crontab -l | { cat; echo "*/1 * * * * bash /data/devop_scripts/minio_mount_checker.sh"; } | crontab -'), all_nodes))
+
 
 
 if __name__ == '__main__':

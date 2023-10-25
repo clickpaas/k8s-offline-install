@@ -14,19 +14,18 @@ class DockerInstall:
     @staticmethod
     def install_from_binary(host, password):
         # scp docker binary file to remote host
-        docker_package = os.path.join(get_project_root_path(), "packages/docker/docker")
+        docker_package = os.path.join(get_project_root_path(), "packages/containerd")
         allfiles = [os.path.join(docker_package, _) for _ in os.listdir(docker_package)]
-        list(map(lambda _: LocalCommand.scp(host, password, _, os.path.join("/usr/bin/", os.path.basename(_))),
-                 allfiles))
+        list(map(lambda _: LocalCommand.scp(host, password, _, os.path.join("/usr/local/bin/", os.path.basename(_))), allfiles))
+        list(map(lambda _: RemoteCommand.security_command(host, password, "chmod +x /usr/local/bin/{}".format(os.path.basename(_))), allfiles))
         #  scp service file to remote host
-        err = RemoteCommand.security_command(host, password, "mkdir /etc/docker/ -pv")
+        err = RemoteCommand.security_command(host, password, "mkdir /etc/containerd/ -pv")
         err = LocalCommand.scp(host, password,
-                               os.path.join(get_project_root_path(), "packages/configure/docker.service"),
-                               "/etc/systemd/system/docker.service")
-        err = LocalCommand.scp(host, password, os.path.join(get_project_root_path(), "packages/configure/daemon.json"),
-                               "/etc/docker/daemon.json")
-        err = RemoteCommand.systemctl_enable(host, password, "docker")
-        err = RemoteCommand.systemctl_start(host, password, "docker")
+                               os.path.join(get_project_root_path(), "packages/configure/containerd.service"),
+                               "/etc/systemd/system/containerd.service")
+        err = LocalCommand.scp(host, password, os.path.join(get_project_root_path(), "packages/configure/containerd.toml"), "/etc/containerd/config.toml")
+        err = RemoteCommand.systemctl_enable(host, password, "containerd")
+        err = RemoteCommand.systemctl_start(host, password, "containerd")
 
     @staticmethod
     def install_from_rpm(host, password):
@@ -36,6 +35,7 @@ class DockerInstall:
         remote_docker_rpm_path = os.path.join(work_temp_dir, "packages/docker")
         installdocker = RemoteCommand.security_command(host, password,
                                                        "yum localinstall {}/*.rpm -y".format(remote_docker_rpm_path))
+        assert isinstance(installdocker, dict), "expect got dict, but got {}".format(type(installdocker))
         if installdocker.get("code") or "Complete" not in installdocker.get("data"):
             ret['code'] = 500
             ret['msg'] = installdocker.get("msg")

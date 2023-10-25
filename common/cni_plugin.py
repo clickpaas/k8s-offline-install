@@ -24,14 +24,12 @@ class CniPlugin:
         _ = RemoteCommand.security_command(host, password, "rm -rf /tmp/cni")
 
     def apply_yaml(self, data_iface):
+        source_yaml = ""
         if self.cni_name == 'flannel':
             source_yaml = os.path.join(self.yaml_path, "kube-flannel.yml")
-            replace = general_syscmd_execute("sed -i 's/DATAINTERFACE/{}/' {}".format(data_iface, source_yaml))
-            yamls = [os.path.join(self.yaml_path, _) for _ in os.listdir(self.yaml_path)]
-            undo_replace = general_syscmd_execute("sed -i 's/{}/DATAINTERFACE/' {}".format(data_iface, source_yaml))
         elif self.cni_name == "calico":
             source_yaml = os.path.join(self.yaml_path, "calico.yaml")
-            replace = general_syscmd_execute("sed -i 's/DATAINTERFACE/{}/' {}".format(data_iface, source_yaml))
-            yamls = [os.path.join(self.yaml_path, _) for _ in os.listdir(self.yaml_path)]
-            restore_calico = general_syscmd_execute("sed -i 's/{}/DATAINTERFACE/' {}".format(data_iface, source_yaml))
+        # replace = general_syscmd_execute("sed -i 's/DATAINTERFACE/{}/' {}".format(data_iface, source_yaml))
+        # yamls = [os.path.join(self.yaml_path, _) for _ in os.listdir(self.yaml_path)]
         _ = general_syscmd_execute("kubectl apply -f {}/".format(self.yaml_path))
+        # undo_replace = general_syscmd_execute("sed -i 's/{}/DATAINTERFACE/' {}".format(data_iface, source_yaml))

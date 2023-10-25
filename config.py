@@ -3,13 +3,13 @@
 # 如果允许scp并且客户提供用户名和密码，按照固定格式填写
 hosts = {
     "master": [
-        {"ip": "10.77.13.208", "user": "root", "password": "xxxxxxx"},
+        {"ip": "172.17.0.2", "user": "root", "password": "xxxxxxx"},
     ],  # master节点的ip地址/密码
     "slave": [
-        {}
+        {"ip": ""}
     ],  # slave node,
     "nodes": [
-        {}
+        {"ip": "", "user":"root", "password": "xxxx"},
     ],  # work节点的ip地址/密码 列表
 }
 
@@ -21,7 +21,7 @@ work_temp_dir = "/tmp/k8s"
 # "10.23.6.50/root"
 
 # version of kubernetes should be installed
-KubernetesVersion = "1.16.15"
+KubernetesVersion = "1.27.2"
 
 # should use ssh
 # True, it will auto install docker && kubernetes on all host in config.hosts
@@ -36,4 +36,4 @@ SupportFormatHostname = False
 # should support ha
 # None => will use the ipaddress of current machine as the apiserver address
 # some_domain
-ApiServerDomain = None
+ApiServerDomain = "kubernetes.default"

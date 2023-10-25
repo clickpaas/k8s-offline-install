@@ -25,11 +25,11 @@ def validate_environment():
     ColorPrompt.stage_info("\t Validate Master")
     for i in hosts.get("master"):
         if len(i) == 0: continue
-        panic_if_necessary(i.get("ip"), i.get("password"))
+        # panic_if_necessary(i.get("ip"), i.get("password"))
     ColorPrompt.stage_info("\t Validate Other Node")
     for i in hosts.get("nodes"):
         if len(i) == 0: continue
-        panic_if_necessary(i.get("ip"), i.get("password"))
+        # panic_if_necessary(i.get("ip"), i.get("password"))
 
 
 # environment checkout : checkout sshpass is installed or not
@@ -61,6 +61,8 @@ def bootstrap_enviroment(host, password):
                                                      "/etc/selinux/config && setenforce 0")
     print(ColorPrompt.info_prefix() + "\t{}\tBegin to stop swap".format(ColorPrompt.title_msg(host)))
     stop_swap = RemoteCommand.security_command(host, password, "swapoff -a")
+
+    modprobe = RemoteCommand.security_command(host, password, "modprobe br_netfilter && echo 1 > /proc/sys/net/ipv4/ip_forward")
 
     err = LocalCommand.scp(host, password, os.path.join(get_project_root_path(), "packages/configure/k8s.conf"),
                            "/etc/sysctl.d/k8s.conf")

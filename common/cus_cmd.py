@@ -57,7 +57,7 @@ class RemoteCommand:
 
     @staticmethod
     def docker_load_image(host, password, image):
-        cmd = "docker load -i {}".format(image)
+        cmd = "ctr -n k8s.io image import {}".format(image)
         return RemoteCommand.security_command(host, password, cmd)
 
 
@@ -72,7 +72,7 @@ class LocalCommand:
         if config.SupportScpTransform:
             flag = general_syscmd_execute('sshpass -p \'{}\' scp  -o StrictHostKeyChecking=no {} root@{}:{}'.format(password, src, host, dest))
         else:
-            flag = shutil.copyfile(src, dest)
+            flag = general_syscmd_execute("cp -rf {}  {}".format(src, dest))
         if flag[0] != 0:
             print(
                 ColorPrompt.error_prefix() + "\t{}\tscp {} failed: Reason: {}".format(ColorPrompt.title_msg(host), dest,
